@@ -2,6 +2,24 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'edge';
 
+function getRefererByImageUrl(imageUrl: string): string {
+  try {
+    const { hostname } = new URL(imageUrl);
+
+    if (hostname.includes('tmdb.org')) {
+      return 'https://www.themoviedb.org/';
+    }
+
+    if (hostname.includes('douban.com')) {
+      return 'https://movie.douban.com/';
+    }
+  } catch {
+    // ignore invalid URL and fallback to tmdb referer
+  }
+
+  return 'https://www.themoviedb.org/';
+}
+
 // OrionTV 兼容接口
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -14,7 +32,7 @@ export async function GET(request: Request) {
   try {
     const imageResponse = await fetch(imageUrl, {
       headers: {
-        Referer: 'https://movie.douban.com/',
+        Referer: getRefererByImageUrl(imageUrl),
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
       },
