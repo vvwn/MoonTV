@@ -1,4 +1,5 @@
 import { API_CONFIG, ApiSite, getConfig } from '@/lib/config';
+import { getPosterFromTmdb } from '@/lib/tmdb';
 import { SearchResult } from '@/lib/types';
 import { cleanHtmlTags } from '@/lib/utils';
 
@@ -13,6 +14,18 @@ interface ApiSearchItem {
   vod_content?: string;
   vod_douban_id?: number;
   type_name?: string;
+}
+
+async function withTmdbPoster(result: SearchResult): Promise<SearchResult> {
+  const tmdbPoster = await getPosterFromTmdb(result.title, result.year);
+  if (!tmdbPoster) {
+    return result;
+  }
+
+  return {
+    ...result,
+    poster: tmdbPoster,
+  };
 }
 
 export async function searchFromApi(
@@ -50,7 +63,7 @@ export async function searchFromApi(
       return [];
     }
     // 处理第一页结果
-    const results = data.list.map((item: ApiSearchItem) => {
+    const results: SearchResult[] = data.list.map((item: ApiSearchItem) => {
       let episodes: string[] = [];
 
       // 使用正则表达式从 vod_play_url 提取 m3u8 链接
@@ -181,7 +194,7 @@ export async function searchFromApi(
       });
     }
 
-    return results;
+    return Promise.all(results.map((item) => withTmdbPoster(item)));
   } catch (error) {
     return [];
   }
@@ -252,7 +265,7 @@ export async function getDetailFromApi(
     episodes = matches.map((link: string) => link.replace(/^\$/, ''));
   }
 
-  return {
+  const detail: SearchResult = {
     id: id.toString(),
     title: videoDetail.vod_name,
     poster: videoDetail.vod_pic,
@@ -267,6 +280,8 @@ export async function getDetailFromApi(
     type_name: videoDetail.type_name,
     douban_id: videoDetail.vod_douban_id,
   };
+
+  return withTmdbPoster(detail);
 }
 
 async function handleSpecialSourceDetail(
@@ -328,7 +343,7 @@ async function handleSpecialSourceDetail(
   const yearMatch = html.match(/>(\d{4})</);
   const yearText = yearMatch ? yearMatch[1] : 'unknown';
 
-  return {
+  const detail: SearchResult = {
     id,
     title: titleText,
     poster: coverUrl,
@@ -341,4 +356,6 @@ async function handleSpecialSourceDetail(
     type_name: '',
     douban_id: 0,
   };
+
+  return withTmdbPoster(detail);
 }
