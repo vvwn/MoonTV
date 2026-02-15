@@ -25,6 +25,15 @@ interface DoubanCategoryApiResponse {
   }>;
 }
 
+interface DoubanListApiResponse {
+  subjects: Array<{
+    id: string;
+    title: string;
+    cover: string;
+    rate: string;
+  }>;
+}
+
 /**
  * 带超时的 fetch 请求
  */
@@ -229,15 +238,19 @@ export async function fetchDoubanList(
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
 
-    const doubanData: DoubanCategoryApiResponse = await response.json();
+    const doubanData: DoubanListApiResponse = await response.json();
+
+    if (!Array.isArray(doubanData.subjects)) {
+      throw new Error('豆瓣列表数据格式异常：缺少 subjects 字段');
+    }
 
     // 转换数据格式
-    const list: DoubanItem[] = doubanData.items.map((item) => ({
+    const list: DoubanItem[] = doubanData.subjects.map((item) => ({
       id: item.id,
       title: item.title,
-      poster: item.pic?.normal || item.pic?.large || '',
-      rate: item.rating?.value ? item.rating.value.toFixed(1) : '',
-      year: item.card_subtitle?.match(/(\d{4})/)?.[1] || '',
+      poster: item.cover?.replace(/^http:/, 'https:') || '',
+      rate: item.rate || '',
+      year: '',
     }));
 
     return {
@@ -254,6 +267,6 @@ export async function fetchDoubanList(
         })
       );
     }
-    throw new Error(`获取豆瓣分类数据失败: ${(error as Error).message}`);
+    throw new Error(`获取豆瓣列表数据失败: ${(error as Error).message}`);
   }
 }
